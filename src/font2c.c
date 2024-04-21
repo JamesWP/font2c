@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -58,14 +59,14 @@ static void draw_glyph(unsigned char glyph, int *x, int *y) {
     // to_bitmap( &slot->bitmap, *x + slot->bitmap_left, *y - slot->bitmap_top );
 }
 
-static void out_xbm(int w, int h, int char_width, int char_height) {
+static void out_xbm(int w, int h, int char_width, int char_height, const char* tag) {
     int x, y;
     // TODO: define image label?
-    printf("#define BMP_width %d\n", w*8);
-    printf("#define BMP_height %d\n", h);
-    printf("#define BMP_glyph_h %d\n", char_height);
-    printf("#define BMP_glyph_w %d\n", char_width);
-    printf("static char BMP_bits[] = {\n");
+    printf("#define %s_width %d\n", tag, w*8);
+    printf("#define %s_height %d\n", tag, h);
+    printf("#define %s_glyph_h %d\n", tag, char_height);
+    printf("#define %s_glyph_w %d\n", tag, char_width);
+    printf("static char %s_bits[] = {\n", tag);
     for (y=0; y < h; y++) {
         printf("\t");
         for (x=0; x < w; x++) {
@@ -76,18 +77,28 @@ static void out_xbm(int w, int h, int char_width, int char_height) {
     printf("\n}\n");
 }
 
+const char* or_null(const char* val, const char* els) {
+    assert(els);
+    if(val) {
+        return val;
+    } else {
+        return els;
+    }
+}
+
 int main(int argc, char **argv) {
-    char *filename;
+    char *filename, *tag;
     int x = 0, y = 0;
     int g;
 
     memset (image, 0, image_byte_width*image_height);
 
-    if (argc < 2) {
-        fprintf( stderr, "usage: font2c [font]\n");
+    if (argc < 3) {
+        fprintf( stderr, "usage: font2c [font] [tag]\n");
         exit(1);
     }
     filename = argv[1];
+    tag = argv[2];
 
     if ((err = FT_Init_FreeType( &library ))) {
         fprintf( stderr, "error: Init_Freetype failed %d\n", err);
@@ -97,7 +108,8 @@ int main(int argc, char **argv) {
         fprintf( stderr, "error: FT_New_Face failed %d\n", err);
         exit(1);
     }
-   
+
+    fprintf(stderr, "Loaded font %s - %s\n", or_null(face->family_name, "[FACE]"), or_null(face->style_name, "[STYLE]"));
 
     if (face->face_flags & FT_FACE_FLAG_FIXED_SIZES) { 
         int size = -1;
@@ -149,7 +161,8 @@ int main(int argc, char **argv) {
         x += char_width;
     }
 
-    out_xbm(image_byte_width, image_height, char_width, char_height);
+    fprintf(stderr, "Outputting XBM format with tag: %s\n", tag);
+    out_xbm(image_byte_width, image_height, char_width, char_height, tag);
     free(image);
     FT_Done_Face( face );
     FT_Done_FreeType( library );
